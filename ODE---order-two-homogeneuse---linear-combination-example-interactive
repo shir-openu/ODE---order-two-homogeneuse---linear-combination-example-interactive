@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>צירוף לינארי של פתרונות בסיס</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .equation {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            margin: 10px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .slider {
+            width: 200px;
+            margin: 5px 0;
+        }
+        .value-display {
+            font-family: monospace;
+            font-size: 16px;
+            background: #f0f0f0;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+        canvas {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            display: block;
+            margin: 20px auto;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        .explanation {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            border-right: 4px solid #ffc107;
+        }
+        .play-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .play-button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center;">צירוף לינארי של פתרונות בסיס</h1>
+        
+        <div class="equation">
+            y'' + y = 0
+            <br>
+            <small>פתרונות בסיס: y₁ = cos(x), y₂ = sin(x)</small>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="c1">מקדם c₁:</label>
+                <input type="range" id="c1" class="slider" min="-3" max="3" step="0.1" value="1">
+                <div class="value-display" id="c1-value">1.0</div>
+            </div>
+            <div class="control-group">
+                <label for="c2">מקדם c₂:</label>
+                <input type="range" id="c2" class="slider" min="-3" max="3" step="0.1" value="1">
+                <div class="value-display" id="c2-value">1.0</div>
+            </div>
+            <div class="control-group">
+                <button class="play-button" onclick="animateCoefficients()">הנפישו מקדמים</button>
+                <button class="play-button" onclick="resetAnimation()">איפוס</button>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ff6b6b;"></div>
+                <span>y₁ = cos(x)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #10b981;"></div>
+                <span>y₂ = sin(x)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #d946ef; height: 4px;"></div>
+                <span>y = c₁cos(x) + c₂sin(x)</span>
+            </div>
+        </div>
+
+        <canvas id="canvas" width="800" height="400"></canvas>
+
+        <div class="explanation">
+            <h3>הסבר:</h3>
+            <p><strong>מרחב הפתרונות:</strong> כל פתרון למשוואה y'' + y = 0 ניתן לכתיבה כצירוף לינארי של הפתרונות הבסיס cos(x) ו-sin(x).</p>
+            <p><strong>תלות לינארית:</strong> הפתרונות cos(x) ו-sin(x) הם בלתי תלויים לינארית (הורונסקיאן ≠ 0), ולכן הם יוצרים בסיס למרחב הפתרונות הדו-ממדי.</p>
+            <p><strong>הגרעין:</strong> מרחב הפתרונות הוא הגרעין של האופרטור הדיפרנציאלי L(y) = y'' + y.</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const c1Slider = document.getElementById('c1');
+        const c2Slider = document.getElementById('c2');
+        const c1Value = document.getElementById('c1-value');
+        const c2Value = document.getElementById('c2-value');
+
+        let animationId;
+        let isAnimating = false;
+
+        // פרמטרים לגרף
+        const xMin = -2 * Math.PI;
+        const xMax = 2 * Math.PI;
+        const yMin = -4;
+        const yMax = 4;
+        const xStep = 0.05;
+
+        function drawAxes() {
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            
+            // ציר X
+            const y0 = canvas.height * (yMax / (yMax - yMin));
+            ctx.beginPath();
+            ctx.moveTo(0, y0);
+            ctx.lineTo(canvas.width, y0);
+            ctx.stroke();
+            
+            // ציר Y
+            const x0 = canvas.width * (-xMin / (xMax - xMin));
+            ctx.beginPath();
+            ctx.moveTo(x0, 0);
+            ctx.lineTo(x0, canvas.height);
+            ctx.stroke();
+            
+            // סימונים על הצירים
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            
+            for (let i = -2; i <= 2; i++) {
+                if (i !== 0) {
+                    const x = canvas.width * ((i * Math.PI - xMin) / (xMax - xMin));
+                    ctx.fillText(i === 1 ? 'π' : i === -1 ? '-π' : i + 'π', x, y0 + 15);
+                }
+            }
+        }
+
+        function screenX(x) {
+            return canvas.width * (x - xMin) / (xMax - xMin);
+        }
+
+        function screenY(y) {
+            return canvas.height * (yMax - y) / (yMax - yMin);
+        }
+
+        function drawFunction(func, color, lineWidth = 2) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.beginPath();
+            
+            let firstPoint = true;
+            for (let x = xMin; x <= xMax; x += xStep) {
+                const y = func(x);
+                const sx = screenX(x);
+                const sy = screenY(y);
+                
+                if (firstPoint) {
+                    ctx.moveTo(sx, sy);
+                    firstPoint = false;
+                } else {
+                    ctx.lineTo(sx, sy);
+                }
+            }
+            ctx.stroke();
+        }
+
+        function redraw() {
+            const c1 = parseFloat(c1Slider.value);
+            const c2 = parseFloat(c2Slider.value);
+            
+            c1Value.textContent = c1.toFixed(1);
+            c2Value.textContent = c2.toFixed(1);
+            
+            // נקה קנבס
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // צייר צירים
+            drawAxes();
+            
+            // צייר פתרונות בסיס
+            drawFunction(x => Math.cos(x), '#ff6b6b', 1.5);  // cos(x)
+            drawFunction(x => Math.sin(x), '#10b981', 1.5);  // sin(x)
+            
+            // צייר הצירוף הלינארי
+            drawFunction(x => c1 * Math.cos(x) + c2 * Math.sin(x), '#d946ef', 3);
+            
+            // הוסף טקסט עם המשוואה הנוכחית
+            ctx.fillStyle = '#333';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(`y = ${c1.toFixed(1)}cos(x) + ${c2.toFixed(1)}sin(x)`, canvas.width - 20, 30);
+        }
+
+        function animateCoefficients() {
+            if (isAnimating) return;
+            
+            isAnimating = true;
+            let t = 0;
+            const duration = 5000; // 5 שניות
+            const startTime = Date.now();
+            
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                t = (elapsed / duration) * 2 * Math.PI;
+                
+                if (elapsed < duration) {
+                    // אנימציה של המקדמים
+                    const c1 = 2 * Math.cos(t);
+                    const c2 = 2 * Math.sin(t);
+                    
+                    c1Slider.value = c1;
+                    c2Slider.value = c2;
+                    redraw();
+                    
+                    animationId = requestAnimationFrame(animate);
+                } else {
+                    isAnimating = false;
+                }
+            }
+            
+            animate();
+        }
+
+        function resetAnimation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            isAnimating = false;
+            c1Slider.value = 1;
+            c2Slider.value = 1;
+            redraw();
+        }
+
+        // הוסף מאזיני אירועים
+        c1Slider.addEventListener('input', redraw);
+        c2Slider.addEventListener('input', redraw);
+
+        // ציור ראשוני
+        redraw();
+    </script>
+</body>
+</html>
